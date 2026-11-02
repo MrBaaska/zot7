@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>РДМ-22 Ультрасоник Дефектоскопын Системийн Шинжилгээ</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        railDark: '#0f172a',
+                        railPanel: '#1e293b',
+                        railAccent: '#10b981',
+                        railWarning: '#f59e0b',
+                        railDanger: '#ef4444',
+                        railCyan: '#06b6d4'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for dense data views */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .b-scan-grid {
+            background-size: 20px 20px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="bg-railDark text-slate-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-railPanel border-b border-slate-700/80 px-4 py-3 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-500/20 text-emerald-400 p-2 rounded-lg border border-emerald-500/30">
+                    <i class="fa-solid fa-train-subway text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide text-emerald-400 flex items-center gap-2">
+                        УБТЗ :: РДМ-22 / РДМ-33 
+                        <span class="text-xs font-normal px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">v3.4 PRO</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Ультрасоник зам төмрийн дефектоскопын мэдээлэл шинжилгээ ба согог тодорхойлох систем</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3 text-sm">
+                <div class="hidden md:flex items-center space-x-4 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 text-xs">
+                    <div><span class="text-slate-400">Салбар:</span> <span class="font-semibold text-slate-200">ПЧ-4 Улаанбаатар</span></div>
+                    <div class="h-4 w-px bg-slate-700"></div>
+                    <div><span class="text-slate-400">Оператор:</span> <span class="font-semibold text-emerald-400">Дорж.Б (№042)</span></div>
+                    <div class="h-4 w-px bg-slate-700"></div>
+                    <div><span class="text-slate-400">Зам:</span> <span class="font-semibold text-amber-400">1-р замын шил</span></div>
+                </div>
+                <button onclick="toggleDefectCatalog(true)" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-2 text-xs font-medium transition">
+                    <i class="fa-solid fa-book-bookmark text-amber-400"></i> НТД Лавлах
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Controls & File Upload Panel (4 Cols) -->
+        <section class="lg:col-span-4 space-y-5">
+
+            <!-- File Upload & Mode Toggle -->
+            <div class="bg-railPanel p-5 rounded-xl border border-slate-700/80 shadow-lg space-y-4">
+                <h2 class="text-base font-semibold text-emerald-400 flex items-center justify-between">
+                    <span><i class="fa-solid fa-file-arrow-up mr-2"></i>Өгөгдөл Оруулах</span>
+                    <span class="text-xs text-slate-400 font-normal">Скан / Эхограмм</span>
+                </h2>
+
+                <!-- Tab Switching -->
+                <div class="grid grid-cols-2 gap-2 p-1 bg-slate-900 rounded-lg border border-slate-700/60 text-xs font-medium">
+                    <button id="btnTabImage" onclick="switchInputMode('image')" class="py-2 rounded-md bg-emerald-600 text-white shadow transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-image"></i> Дэлгэцийн Зураг
+                    </button>
+                    <button id="btnTabManual" onclick="switchInputMode('manual')" class="py-2 rounded-md text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-sliders"></i> Гараар Тааруулах
+                    </button>
+                </div>
+
+                <!-- Image Upload Zone -->
+                <div id="imageUploadZone" class="border-2 border-dashed border-slate-600 hover:border-emerald-500 transition rounded-xl p-5 text-center cursor-pointer bg-slate-800/40 hover:bg-slate-800/80 group" onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                    <div class="space-y-2">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-slate-700 group-hover:bg-emerald-500/20 text-slate-300 group-hover:text-emerald-400 flex items-center justify-center transition">
+                            <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                        </div>
+                        <p class="text-sm font-medium text-slate-200">РДМ скан зураг оруулах</p>
+                        <p class="text-xs text-slate-400">PNG, JPG болон РДМ-22 дэлгэцийн агшин</p>
+                    </div>
+                </div>
+
+                <!-- Preset Samples (Quick Test Buttons) -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-slate-400">Демо эхограмм (онош биш):</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="loadSampleImage('crack')" class="text-xs bg-slate-800 hover:bg-slate-700 text-rose-300 p-2 rounded-lg border border-rose-500/30 text-left transition flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+                            <div>
+                                <div class="font-semibold">Код 21.1 Согог</div>
+                                <div class="text-[10px] text-slate-400">Төндлөн цууралт</div>
+                            </div>
+                        </button>
+                        <button onclick="loadSampleImage('joint')" class="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 p-2 rounded-lg border border-cyan-500/30 text-left transition flex items-center gap-2">
+                            <i class="fa-solid fa-circle-dot text-cyan-400"></i>
+                            <div>
+                                <div class="font-semibold">Загалуурын нүх</div>
+                                <div class="text-[10px] text-slate-400">Хэвийн ойлт (119км)</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signal & Probe Calculator Inputs -->
+            <div class="bg-railPanel p-5 rounded-xl border border-slate-700/80 shadow-lg space-y-4">
+                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2 border-b border-slate-700 pb-2">
+                    <i class="fa-solid fa-microchip text-emerald-400"></i> Радар & Сувгийн Үзүүлэлт
+                </h3>
+
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Мэдрэгчийн өнцөг (ПЭП):</label>
+                        <select id="probeAngle" onchange="calculateDefectPhysics()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 font-semibold focus:border-emerald-500 focus:outline-none">
+                            <option value="70">70° (Толгой хэсэг)</option>
+                            <option value="55" selected>55° (Толгой / Хүзүү)</option>
+                            <option value="42">42° (Болтны нүх/Ажлын нүүр)</option>
+                            <option value="0">0° (Нийт өндөр/Суурь)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-slate-400 block mb-1">Сувгийн Код (Channel):</label>
+                        <input type="text" id="channelCode" value="3.55Q Л 11" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 font-mono focus:border-emerald-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="text-slate-400 block mb-1">Ойлтын хугацаа (мкс / µs):</label>
+                        <input type="number" id="echoTime" value="48" oninput="calculateDefectPhysics()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 font-mono focus:border-emerald-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="text-slate-400 block mb-1">Өчүүлэх / Өсгөлт (dB):</label>
+                        <input type="number" id="gainDb" value="22" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 font-mono focus:border-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Live Calculated Depth / Distance Indicator -->
+                <div class="bg-slate-900/90 p-3 rounded-lg border border-slate-700/60 grid grid-cols-2 gap-2 text-center">
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider">Гүн (H мм)</div>
+                        <div id="calcDepth" class="text-base font-bold font-mono text-emerald-400">38.4 мм</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider">Туулсан заалт (L мм)</div>
+                        <div id="calcDist" class="text-base font-bold font-mono text-cyan-400">54.8 мм</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coordinate / Location Input -->
+            <div class="bg-railPanel p-5 rounded-xl border border-slate-700/80 shadow-lg space-y-3 text-xs">
+                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2 border-b border-slate-700 pb-2">
+                    <i class="fa-solid fa-location-dot text-rose-400"></i> Замын Координат (Байршил)
+                </h3>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Километр (Км):</label>
+                        <input type="number" id="coordKm" value="119" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 font-bold font-mono focus:border-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Пикет / Метр:</label>
+                        <input type="number" id="coordMeter" value="426" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 font-bold font-mono focus:border-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Миллиметр:</label>
+                        <input type="number" id="coordMm" value="885" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 font-bold font-mono focus:border-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Шил (Зам төмөр):</label>
+                        <select id="railSide" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-emerald-500 focus:outline-none">
+                            <option value="Зүүн (Левая)">Зүүн шил (Л)</option>
+                            <option value="Баруун (Правая)">Баруун шил (П)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Замын чиглэл:</label>
+                        <select id="trackNum" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-emerald-500 focus:outline-none">
+                            <option value="1-р замын сүлжээ">1-р замын сүлжээ</option>
+                            <option value="2-р замын сүлжээ">2-р замын сүлжээ</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Main Canvas Visualizer & Analysis Results (8 Cols) -->
+        <section class="lg:col-span-8 space-y-5">
+
+            <!-- Interactive B-Scan Visualizer Canvas -->
+            <div class="bg-railPanel p-5 rounded-xl border border-slate-700/80 shadow-lg relative">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-base font-semibold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-emerald-400"></i> 
+                        РДМ эхограмм зураг
+                    </h2>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="reanalyzeImage()" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 text-xs px-3 py-1.5 rounded-lg border border-emerald-500/40 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-right"></i> Шалгалтыг дахин эхлүүлэх
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Canvas Wrapper -->
+                <div class="relative w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner flex justify-center items-center min-h-[360px] b-scan-grid">
+                    <canvas id="bScanCanvas" class="max-w-full h-auto block cursor-crosshair"></canvas>
+                    
+                    <!-- Overlay Scanner Anim Line -->
+                    <div id="scanLine" class="absolute top-0 bottom-0 w-0.5 bg-emerald-400 shadow-[0_0_10px_#10b981] hidden pointer-events-none"></div>
+
+                    <!-- Placeholder before image load -->
+                    <div id="canvasPlaceholder" class="text-center p-8 space-y-3">
+                        <i class="fa-solid fa-radar text-4xl text-slate-600 animate-pulse"></i>
+                        <p class="text-sm text-slate-400">РДМ эхограммын зураг эсвэл жишээ өгөгдлийг сонгоно уу</p>
+                    </div>
+                </div>
+
+                <!-- Canvas Toolbar & Legends -->
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 pt-2 border-t border-slate-700/50">
+                    <div class="flex items-center space-x-4">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span> Аюултай согог</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-400 inline-block"></span> Хяналтын дохио</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-cyan-400 inline-block"></span> Загалуурын нүх/Залгаас</span>
+                    </div>
+                    <div id="hoverCoords" class="font-mono text-emerald-400">
+                        X: -- | Y: -- | Түвшин: --
+                    </div>
+                    <p class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
+                        Зураг дангаараа РДМ-22-ын дохионы мэдээлэл, баталгаажсан НТД ангиллыг орлохгүй. Энэ хуудас автомат согог илрүүлэлт хийдэггүй; дүгнэлтийг эрх бүхий шалгагч эх зураг болон төхөөрөмжийн мэдээлэлтэй тулгаж баталгаажуулна.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Auto Detection & Defect Classification Result Box -->
+            <div class="bg-railPanel p-5 rounded-xl border border-slate-700/80 shadow-lg space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                    <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-microscope text-cyan-400"></i> Шинжилгээний Дүгнэлт ба Ангилал
+                    </h3>
+                    <span id="defectBadge" class="bg-slate-700 text-slate-300 border border-slate-600 text-xs px-3 py-1 rounded-full font-bold tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-hourglass-half"></i> Шалгалт хүлээгдэж байна
+                    </span>
+                </div>
+
+                <!-- Analysis Summary Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-700/60 space-y-1">
+                        <span class="text-xs text-slate-400">Баталгаажсан согогийн код:</span>
+                        <div id="resCode" class="text-lg font-bold font-mono text-slate-300">—</div>
+                        <p id="resCategory" class="text-[11px] text-slate-300">Шалгагчийн дүгнэлт хүлээгдэж байна</p>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-700/60 space-y-1">
+                        <span class="text-xs text-slate-400">Шалгалтын төлөв:</span>
+                        <div id="resUrgency" class="text-base font-bold text-slate-300">Үнэлгээ хийгдээгүй</div>
+                        <p id="resReview" class="text-[11px] text-slate-300">Зураг оруулж, эрх бүхий шалгагчаар хянуулна уу.</p>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3.5 rounded-lg border border-slate-700/60 space-y-1">
+                        <span class="text-xs text-slate-400">Яг тодорхой координатад:</span>
+                        <div id="resLocation" class="text-sm font-bold font-mono text-emerald-400">—</div>
+                        <p id="resSide" class="text-[11px] text-slate-300">—</p>
+                    </div>
+                </div>
+
+                <!-- Technical Description & Recommendations -->
+                <div class="bg-slate-900/40 p-4 rounded-lg border border-slate-700/40 space-y-2 text-xs">
+                    <div class="font-semibold text-slate-200">Бүтэц ба Шинж Тэмдэг:</div>
+                    <p id="resDescription" class="text-slate-300 leading-relaxed">
+                        Автомат дүгнэлт байхгүй. Эх зураг болон РДМ төхөөрөмжийн дохиотой тулгаж шалгана уу.
+                    </p>
+                </div>
+
+                <div class="rounded-xl border border-slate-700 bg-slate-900/50 p-4 space-y-3">
+                    <div>
+                        <h4 class="text-sm font-semibold text-slate-100">Шалгагчийн дүгнэлт</h4>
+                        <p class="mt-1 text-xs text-slate-400">Зураг дээр дарж ажигласан цэгийг тэмдэглээд, баталгаажсан код ба согогийн нэрийг оруулна уу.</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="text-xs text-slate-400">НТД согогийн код
+                            <input id="findingCode" type="text" placeholder="Жишээ: 53.1" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-sm text-slate-100 placeholder:text-slate-600">
+                        </label>
+                        <label class="text-xs text-slate-400">Согогийн нэр / төрөл
+                            <input id="findingName" type="text" placeholder="Баталгаажсан согогийн нэр" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-sm text-slate-100 placeholder:text-slate-600">
+                        </label>
+                        <label class="sm:col-span-2 text-xs text-slate-400">Тайлбар (заавал биш)
+                            <input id="findingNote" type="text" placeholder="Ажиглалт, суваг эсвэл нэмэлт тэмдэглэл" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-sm text-slate-100 placeholder:text-slate-600">
+                        </label>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="addConfirmedFinding()" class="rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-500">+ Баталгаажсан согог нэмэх</button>
+                        <button onclick="confirmNormal()" class="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20">Шалгаад согоггүй — хэвийн гэж батлах</button>
+                    </div>
+                    <div>
+                        <div class="mb-2 flex items-center justify-between gap-2">
+                            <h5 class="text-xs font-semibold text-slate-300">Шалгалтын жагсаалт</h5>
+                            <span id="findingCount" class="text-xs text-slate-400">0</span>
+                        </div>
+                        <div id="findingList" class="space-y-2" aria-live="polite">
+                            <p class="rounded-lg border border-dashed border-slate-700 p-3 text-center text-xs text-slate-500">Зураг оруулаад шалгалтын дүгнэлтээ бүртгэнэ үү.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions / Export Buttons -->
+                <div class="flex flex-wrap gap-3 pt-2">
+                    <button id="reportButton" onclick="generateOfficialReport()" disabled class="flex-1 bg-slate-700 text-slate-400 font-bold py-2.5 px-4 rounded-lg shadow-md transition flex items-center justify-center gap-2 text-xs disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-file-lines text-base"></i> Шалгагчийн тэмдэглэл бэлтгэх
+                    </button>
+                    <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 py-2.5 px-4 rounded-lg transition flex items-center justify-center gap-2 text-xs font-medium">
+                        <i class="fa-solid fa-print"></i> Хэвлэх
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Modal: Official Railway Defect Report / Act -->
+    <div id="reportModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white text-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 md:p-8 space-y-6">
+            <!-- Official Header -->
+            <div class="text-center border-b-2 border-slate-900 pb-4 space-y-1">
+                <div class="font-serif text-sm font-bold uppercase tracking-wider">УЛААНБААТАР ТӨМӨР ЗАМ ХУВЬЦАА НЭГДҮҮЛЭХ НЭГДҮГЭЭР АНГИ</div>
+                <div class="font-serif text-xs font-semibold">ЗАМЫН АЖ АХУЙН АЛБА :: ДЕФЕКТОСКОПИЙН СЕКТОР</div>
+                <h2 class="text-xl font-extrabold font-serif mt-2 text-slate-800 uppercase">ЗАМ ТӨМРИЙН ШАЛГАЛТЫН ТЭМДЭГЛЭЛ №<span id="actNum">—</span></h2>
+            </div>
+
+            <!-- Metadata Sheet -->
+            <div class="grid grid-cols-2 gap-4 text-xs font-serif border border-slate-300 p-4 rounded-lg bg-slate-50">
+                <div><strong>Тэмдэглэл үүсгэсэн:</strong> <span id="actDate">—</span></div>
+                <div><strong>Шалгасан аппарат:</strong> Шалгагчаар бөглөнө</div>
+                <div><strong>Хэсэг / анги:</strong> Шалгагчаар бөглөнө</div>
+                <div><strong>Шалгагч:</strong> Шалгагчаар бөглөнө</div>
+                <div><strong>Замын координата:</strong> <span id="actKm" class="font-bold text-rose-700">119 км 426 м 885 мм</span></div>
+                <div><strong>Зам төмрийн шил:</strong> <span id="actSide">Зүүн (Л)</span></div>
+            </div>
+
+            <!-- Defect Technical Specifications Table -->
+            <div class="space-y-2">
+                <h4 class="font-bold text-sm text-slate-800">1. Согогийн үзүүлэлт ба ангилал:</h4>
+                <table class="w-full text-xs border-collapse border border-slate-300 text-left">
+                    <thead class="bg-slate-200 font-bold">
+                        <tr>
+                            <th class="border border-slate-300 p-2">НТД Код</th>
+                            <th class="border border-slate-300 p-2">Согогийн Нэр</th>
+                            <th class="border border-slate-300 p-2">Байрлал / Гүн</th>
+                            <th class="border border-slate-300 p-2">Суваг / Өнцөг</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td id="actCode" class="border border-slate-300 p-2 font-bold text-rose-600">Код 21.1</td>
+                            <td id="actName" class="border border-slate-300 p-2">Толгойн хөндлөн цууралт</td>
+                            <td id="actDepth" class="border border-slate-300 p-2">38.4 мм (Толгой)</td>
+                            <td id="actChannel" class="border border-slate-300 p-2">3.55Q (55°)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Action & Directives -->
+            <div class="space-y-2 text-xs">
+                <h4 class="font-bold text-sm text-slate-800">2. Авах яаралтай арга хэмжээ:</h4>
+                <div class="border-l-4 border-amber-500 bg-amber-50 p-3 rounded text-amber-900 font-semibold" id="actAction">
+                    Ангилал болон авах арга хэмжээг эрх бүхий инженер НТД-ын дагуу тусад нь баталгаажуулна.
+                </div>
+            </div>
+
+            <!-- Signatures -->
+            <div class="pt-8 border-t border-slate-300 grid grid-cols-2 text-xs gap-8 font-serif">
+                <div>
+                    <p class="mb-6">Акт тогтоосон дефектоскопич:</p>
+                    <p class="border-b border-slate-400 pb-1 text-slate-600">................................. / Дорж.Б /</p>
+                </div>
+                <div>
+                    <p class="mb-6">Хүлээж авсан Замын мастер:</p>
+                    <p class="border-b border-slate-400 pb-1 text-slate-600">................................. / Бат-Эрдэнэ /</p>
+                </div>
+            </div>
+
+            <!-- Modal Footer Buttons -->
+            <div class="flex justify-end space-x-3 pt-4 border-t border-slate-200">
+                <button onclick="toggleReportModal(false)" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold">Хаах</button>
+                <button onclick="window.print()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow">Акт Хэвлэх</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: NTD Railway Defect Reference Catalog -->
+    <div id="catalogModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-railPanel text-slate-100 rounded-2xl max-w-4xl w-full max-h-[85vh] overflow-y-auto border border-slate-700 shadow-2xl p-6 space-y-5">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
+                    <i class="fa-solid fa-book-bookmark"></i> НТД Зам Төмрийн Согогийн Ангиллын Лавлах (НТД-УБТЗ)
+                </h3>
+                <button onclick="toggleDefectCatalog(false)" class="text-slate-400 hover:text-slate-200 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <!-- Defect 21.1 -->
+                <div class="bg-slate-900 p-4 rounded-xl border border-rose-500/30 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-rose-400 text-sm">КОД 21.1 - 21.2</span>
+                        <span class="bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded border border-rose-500/30 font-mono">Аюултай (ОПР)</span>
+                    </div>
+                    <h4 class="font-semibold text-slate-200">Зам төмрийн толгойн хөндлөн цууралт</h4>
+                    <p class="text-slate-400">Контакт-ядралтын ачааллаас үүссэн дотоод микро цоорхой бөгөөд 55° ба 70° сувгаар тодорхойлогдоно.</p>
+                </div>
+
+                <!-- Defect 53.1 -->
+                <div class="bg-slate-900 p-4 rounded-xl border border-amber-500/30 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-amber-400 text-sm">КОД 53.1 - 53.2</span>
+                        <span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30 font-mono">Хяналтад (ДП)</span>
+                    </div>
+                    <h4 class="font-semibold text-slate-200">Загалуурын болтны нүхний цууралт</h4>
+                    <p class="text-slate-400">Болтны нүхнээс 45° өнцгөөр хүзүү ба толгой руу салбарласан цууралт. 42° өнцөгтэй датчик харуулна.</p>
+                </div>
+
+                <!-- Defect 69 -->
+                <div class="bg-slate-900 p-4 rounded-xl border border-rose-500/30 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-rose-400 text-sm">КОД 69</span>
+                        <span class="bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded border border-rose-500/30 font-mono">Аюултай (ОПР)</span>
+                    </div>
+                    <h4 class="font-semibold text-slate-200">Суурийн хөндлөн хугарал</h4>
+                    <p class="text-slate-400">Зам төмрийн ул / суурь хэсэгт үүссэн цууралт. 0° болон 42° сувгуудаар ёроолын эхо дохио алга болох шинжээр илэрнэ.</p>
+                </div>
+
+                <!-- Defect 30G -->
+                <div class="bg-slate-900 p-4 rounded-xl border border-cyan-500/30 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-cyan-400 text-sm">КОД 30G</span>
+                        <span class="bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30 font-mono">Гагнуур</span>
+                    </div>
+                    <h4 class="font-semibold text-slate-200">Зам төмрийн гагнаасан уулзварын согог</h4>
+                    <p class="text-slate-400">Алууран болон цахилгаан гагнуурын бүс дэх хайлшгүйдэл ба дотоод нүхжилт.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Global State & Setup
+        let canvas = document.getElementById('bScanCanvas');
+        let ctx = canvas.getContext('2d');
+        let currentImg = null;
+        let baseCanvas = null;
+        let selectedPoint = null;
+        let findings = [];
+        let reviewState = 'pending';
+        let isDemo = false;
+        let nextFindingId = 1;
+        const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
+
+        // Sound Speed in Steel for Ultrasonic Wave (m/s)
+        const SPEED_OF_SOUND_STEEL = 3230; // Shear wave transverse speed
+
+        window.onload = () => {
+            initCanvas();
+            renderFindings();
+            calculateDefectPhysics();
+        };
+
+        function initCanvas() {
+            canvas.width = 720;
+            canvas.height = 380;
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.round((e.clientX - rect.left) * canvas.width / rect.width);
+                const y = Math.round((e.clientY - rect.top) * canvas.height / rect.height);
+                document.getElementById('hoverCoords').innerText = `X: ${x}px | Y: ${y}px | Далайц: ${Math.round((380-y)/3.8)}%`;
+            });
+            canvas.addEventListener('click', (e) => {
+                if (!currentImg && !isDemo) {
+                    setStatus('Эхлээд зураг оруулна уу.');
+                    return;
+                }
+                const rect = canvas.getBoundingClientRect();
+                selectedPoint = {
+                    x: Math.round((e.clientX - rect.left) * canvas.width / rect.width),
+                    y: Math.round((e.clientY - rect.top) * canvas.height / rect.height)
+                };
+                drawCanvas();
+                setStatus(`Зураг дээрх цэг сонголоо: X ${selectedPoint.x}, Y ${selectedPoint.y}.`);
+            });
+        }
+
+        function setStatus(message) {
+            document.getElementById('resReview').innerText = message;
+        }
+
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (currentImg) {
+                const scale = Math.min(canvas.width / currentImg.naturalWidth, canvas.height / currentImg.naturalHeight);
+                const width = currentImg.naturalWidth * scale;
+                const height = currentImg.naturalHeight * scale;
+                ctx.drawImage(currentImg, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+            } else if (baseCanvas) {
+                ctx.drawImage(baseCanvas, 0, 0);
+            }
+
+            findings.filter(item => item.point).forEach(item => drawFindingMarker(item.point, item.id));
+            if (selectedPoint) drawFindingMarker(selectedPoint, '+');
+            document.getElementById('canvasPlaceholder').style.display = currentImg || isDemo ? 'none' : 'block';
+        }
+
+        function drawFindingMarker(point, label) {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 12, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.2)';
+            ctx.fill();
+            ctx.strokeStyle = '#fb7185';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(label), point.x, point.y);
+            ctx.textAlign = 'start';
+            ctx.textBaseline = 'alphabetic';
+        }
+
+        function resetReview() {
+            findings = [];
+            selectedPoint = null;
+            reviewState = 'pending';
+            nextFindingId = 1;
+            renderFindings();
+            updateReviewUI();
+        }
+
+        function updateReviewUI() {
+            const badge = document.getElementById('defectBadge');
+            const code = document.getElementById('resCode');
+            const category = document.getElementById('resCategory');
+            const urgency = document.getElementById('resUrgency');
+            const location = document.getElementById('resLocation');
+            const side = document.getElementById('resSide');
+            const description = document.getElementById('resDescription');
+            const reportButton = document.getElementById('reportButton');
+            const latestFinding = findings.find(item => item.type === 'defect');
+
+            if (reviewState === 'normal') {
+                badge.className = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs px-3 py-1 rounded-full font-bold tracking-wider flex items-center gap-1.5';
+                badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Шалгагчаар хэвийн гэж баталсан';
+                code.innerText = 'Согог бүртгэгдээгүй';
+                category.innerText = 'Шалгагчийн баталгаажуулсан дүгнэлт';
+                urgency.innerText = 'ХЭВИЙН (гар баталгаажуулсан)';
+                urgency.className = 'text-base font-bold text-emerald-300';
+                setStatus('Энэ нь автомат онош биш. Шалгагч зураг, төхөөрөмжийн эх өгөгдлийг хянаж хэвийн гэж баталсан.');
+                description.innerText = 'Шалгагчийн тэмдэглэл: согог илрээгүй гэж гар баталгаажуулсан. Энэхүү төлөв нь автомат шалгалт эсвэл аюулгүй байдлын баталгаа биш.';
+                reportButton.disabled = true;
+            } else if (latestFinding) {
+                badge.className = 'bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs px-3 py-1 rounded-full font-bold tracking-wider flex items-center gap-1.5';
+                badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Шалгагчаар согог баталгаажсан';
+                code.innerText = latestFinding.code;
+                category.innerText = latestFinding.name;
+                urgency.innerText = 'Шалгагчийн үнэлгээ шаардлагатай';
+                urgency.className = 'text-base font-bold text-amber-300';
+                setStatus('Согогийн код, төрөл шалгагчийн оруулсан мэдээлэл. Арга хэмжээний шийдвэрийг НТД-аар нягтална уу.');
+                description.innerText = latestFinding.note || 'Зургийн цэгийг шалгагч тэмдэглэж, согогийг гараар баталгаажуулсан.';
+                reportButton.disabled = !currentImg;
+            } else {
+                badge.className = 'bg-slate-700 text-slate-300 border border-slate-600 text-xs px-3 py-1 rounded-full font-bold tracking-wider flex items-center gap-1.5';
+                badge.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Шалгалт хүлээгдэж байна';
+                code.innerText = '—';
+                category.innerText = 'Шалгагчийн дүгнэлт хүлээгдэж байна';
+                urgency.innerText = 'Үнэлгээ хийгдээгүй';
+                urgency.className = 'text-base font-bold text-slate-300';
+                setStatus(currentImg || isDemo ? 'Зурагт автомат онош тавиагүй. Шалгагчийн хяналт хүлээгдэж байна.' : 'Зураг оруулж, эрх бүхий шалгагчаар хянуулна уу.');
+                description.innerText = 'Автомат дүгнэлт байхгүй. Эх зураг болон РДМ төхөөрөмжийн дохиотой тулгаж шалгана уу.';
+                reportButton.disabled = true;
+            }
+            reportButton.className = reportButton.disabled
+                ? 'flex-1 bg-slate-700 text-slate-400 font-bold py-2.5 px-4 rounded-lg shadow-md transition flex items-center justify-center gap-2 text-xs disabled:cursor-not-allowed'
+                : 'flex-1 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold py-2.5 px-4 rounded-lg shadow-md transition flex items-center justify-center gap-2 text-xs';
+
+            if (findings.length) {
+                const locationText = `${document.getElementById('coordKm').value || '—'} км ${document.getElementById('coordMeter').value || '—'} м ${document.getElementById('coordMm').value || '—'} мм`;
+                location.innerText = locationText;
+                side.innerText = `${document.getElementById('railSide').selectedOptions[0].text} / ${document.getElementById('channelCode').value || 'суваг тодорхойгүй'}`;
+            } else {
+                location.innerText = '—';
+                side.innerText = '—';
+            }
+        }
+
+        // Switch Mode (Image Upload vs Manual Input)
+        function switchInputMode(mode) {
+            const btnImg = document.getElementById('btnTabImage');
+            const btnManual = document.getElementById('btnTabManual');
+            
+            if(mode === 'image') {
+                btnImg.className = "py-2 rounded-md bg-emerald-600 text-white shadow transition flex items-center justify-center gap-1.5";
+                btnManual.className = "py-2 rounded-md text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-1.5";
+            } else {
+                btnManual.className = "py-2 rounded-md bg-emerald-600 text-white shadow transition flex items-center justify-center gap-1.5";
+                btnImg.className = "py-2 rounded-md text-slate-400 hover:text-slate-200 transition flex items-center justify-center gap-1.5";
+            }
+        }
+
+        // Load Preset Sample Flaw Images via Canvas Generation
+        function loadSampleImage(type) {
+            currentImg = null;
+            isDemo = true;
+            resetReview();
+            document.getElementById('canvasPlaceholder').style.display = 'none';
+
+            ctx.fillStyle = "#111827";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw RDM UI Grid Elements
+            drawRdmUiGrid();
+
+            if (type === 'crack') {
+                drawSignalPatternCrack();
+            } else {
+                drawSignalPatternJoint();
+            }
+
+            baseCanvas = document.createElement('canvas');
+            baseCanvas.width = canvas.width;
+            baseCanvas.height = canvas.height;
+            baseCanvas.getContext('2d').drawImage(canvas, 0, 0);
+            drawCanvas();
+            updateReviewUI();
+        }
+
+        // Draw Synthetic RDM UI Screen Layers
+        function drawRdmUiGrid() {
+            // Draw horizontal channels lines
+            ctx.strokeStyle = "rgba(71, 85, 105, 0.4)";
+            ctx.lineWidth = 1;
+            for(let y = 40; y < canvas.height; y += 45) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw Vertical Kilometer / Time Divider Lines
+            for(let x = 120; x < canvas.width; x += 150) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.strokeStyle = "rgba(100, 116, 139, 0.5)";
+                ctx.stroke();
+            }
+
+            // Text Labels on Left Rail Radar Channel Panel
+            ctx.fillStyle = "#38bdf8";
+            ctx.font = "11px monospace";
+            ctx.fillText("1.42N Л 22", 15, 45);
+            ctx.fillText("3.55Q Л 11", 15, 90);
+            ctx.fillText("5.55N Л 11", 15, 135);
+            ctx.fillText("2.70N Л 13", 15, 180);
+            ctx.fillText("7.70Q Л 20", 15, 225);
+            ctx.fillText("6.42N П 20", 15, 270);
+        }
+
+        // Draw Transverse Crack (Red Highlight Circle from user image)
+        function drawSignalPatternCrack() {
+            // Yellow/Cyan Signal V-patterns
+            ctx.fillStyle = "#06b6d4"; // Cyan signal
+            for(let x = 320; x < 580; x += 40) {
+                ctx.beginPath();
+                ctx.arc(x, 90, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Defect Signal (Cyan Slash Signal)
+            ctx.strokeStyle = "#06b6d4";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(420, 75);
+            ctx.lineTo(440, 105);
+            ctx.stroke();
+
+            // Red Defect Circle (Identical to user image)
+            ctx.strokeStyle = "#ef4444";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(430, 90, 22, 14, -Math.PI / 6, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Label Box
+            ctx.fillStyle = "#ef4444";
+            ctx.fillRect(405, 50, 85, 16);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 9px sans-serif";
+            ctx.fillText("ДЕМО ДОХИО", 412, 62);
+        }
+
+        // Draw Joint Pattern (Green Noise + V-angle Patterns)
+        function drawSignalPatternJoint() {
+            // Scatter green dots across middle web
+            ctx.fillStyle = "#22c55e";
+            for(let i = 0; i < 220; i++) {
+                let rx = Math.random() * (canvas.width - 100) + 50;
+                let ry = 190 + (Math.random() * 40 - 20);
+                ctx.fillRect(rx, ry, 2, 2);
+            }
+
+            // V-Shaped echo patterns in middle
+            ctx.strokeStyle = "#eab308";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(350, 150);
+            ctx.lineTo(365, 195);
+            ctx.lineTo(380, 150);
+            ctx.stroke();
+
+            // Blue Box for Joint Identification
+            ctx.strokeStyle = "#38bdf8";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(340, 140, 50, 65);
+
+            ctx.fillStyle = "#38bdf8";
+            ctx.font = "10px sans-serif";
+            ctx.fillText("Загалуур 119км", 335, 130);
+        }
+
+        // Handle Image File Upload
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                setStatus('Зургийн файл сонгоно уу.');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    currentImg = img;
+                    isDemo = false;
+                    baseCanvas = null;
+                    resetReview();
+                    drawCanvas();
+                    updateReviewUI();
+                };
+                img.onerror = function() { setStatus('Зургийг нээж чадсангүй. Өөр файл сонгоно уу.'); };
+                img.src = e.target.result;
+            };
+            reader.onerror = function() { setStatus('Файл уншихад алдаа гарлаа.'); };
+            reader.readAsDataURL(file);
+        }
+
+        // Trigger Visual Radar Scanner Line
+        function triggerScanAnimation() {
+            const scanLine = document.getElementById('scanLine');
+            scanLine.style.display = 'block';
+            let pos = 0;
+            const interval = setInterval(() => {
+                pos += 12;
+                scanLine.style.left = pos + 'px';
+                if (pos > canvas.width) {
+                    clearInterval(interval);
+                    scanLine.style.display = 'none';
+                }
+            }, 20);
+        }
+
+        // Calculate Physics (Echo delay time to depth/distance conversion)
+        function calculateDefectPhysics() {
+            const angleDeg = parseFloat(document.getElementById('probeAngle').value);
+            const timeMicroSec = parseFloat(document.getElementById('echoTime').value) || 0;
+
+            // Distance in steel (mm) = (Speed * Time) / 2
+            const distanceTotal = (SPEED_OF_SOUND_STEEL * (timeMicroSec * 1e-6) * 1000) / 2;
+            
+            // Depth H = L * cos(angle)
+            const angleRad = (angleDeg * Math.PI) / 180;
+            const depth = distanceTotal * Math.cos(angleRad);
+
+            document.getElementById('calcDepth').innerText = depth.toFixed(1) + ' мм';
+            document.getElementById('calcDist').innerText = distanceTotal.toFixed(1) + ' мм';
+
+        }
+
+        function addConfirmedFinding() {
+            if (!currentImg) {
+                setStatus('Эхлээд зураг оруулна уу.');
+                return;
+            }
+            const code = document.getElementById('findingCode').value.trim();
+            const name = document.getElementById('findingName').value.trim();
+            if (!code || !name) {
+                setStatus('Согогийн код болон нэрийг бөглөнө үү.');
+                return;
+            }
+            const point = selectedPoint;
+            findings.push({
+                id: nextFindingId++,
+                type: 'defect',
+                code,
+                name,
+                note: document.getElementById('findingNote').value.trim(),
+                point
+            });
+            selectedPoint = null;
+            reviewState = 'defect';
+            renderFindings();
+            drawCanvas();
+            updateReviewUI();
+        }
+
+        function confirmNormal() {
+            if (!currentImg) {
+                setStatus('Хэвийн гэж батлахын тулд бодит зураг оруулна уу. Демо зурагт энэ үйлдэл боломжгүй.');
+                return;
+            }
+            if (findings.some(item => item.type === 'defect') && !window.confirm('Согогийн бүртгэл байгаа ч хэвийн төлөвт шилжүүлэх үү?')) return;
+            findings = [];
+            selectedPoint = null;
+            reviewState = 'normal';
+            renderFindings();
+            drawCanvas();
+            updateReviewUI();
+        }
+
+        function deleteFinding(id) {
+            findings = findings.filter(item => item.id !== id);
+            reviewState = findings.some(item => item.type === 'defect') ? 'defect' : 'pending';
+            renderFindings();
+            drawCanvas();
+            updateReviewUI();
+        }
+
+        function renderFindings() {
+            const list = document.getElementById('findingList');
+            const defects = findings.filter(item => item.type === 'defect');
+            document.getElementById('findingCount').innerText = reviewState === 'normal'
+                ? 'Хэвийн гэж баталсан'
+                : `${defects.length} согог`;
+            if (reviewState === 'normal') {
+                list.innerHTML = '<p class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm font-semibold text-emerald-300"><i class="fa-solid fa-circle-check mr-2"></i>Шалгагч согог илрээгүй гэж гар баталгаажуулсан.</p>';
+            } else if (defects.length) {
+                list.innerHTML = defects.map(item => `<div class="flex items-start justify-between gap-3 rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+                    <div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="rounded bg-rose-500/20 px-2 py-0.5 font-mono font-bold text-rose-300">#${item.id} · ${escapeHtml(item.code)}</span><span class="text-sm font-semibold text-slate-100">${escapeHtml(item.name)}</span></div>
+                    <p class="mt-1 text-xs text-slate-400">${item.point ? `Зургийн цэг X:${item.point.x}, Y:${item.point.y}` : 'Зургийн цэг сонгоогүй'}${item.note ? ` · ${escapeHtml(item.note)}` : ''}</p></div>
+                    <button onclick="deleteFinding(${item.id})" class="shrink-0 text-xs text-slate-400 hover:text-rose-300" aria-label="Согогийн бүртгэл устгах">Устгах</button>
+                </div>`).join('');
+            } else {
+                list.innerHTML = '<p class="rounded-lg border border-dashed border-slate-700 p-3 text-center text-xs text-slate-500">Зураг оруулаад шалгалтын дүгнэлтээ бүртгэнэ үү.</p>';
+            }
+        }
+
+        // Re-analyze image click
+        function reanalyzeImage() {
+            if (!currentImg && !isDemo) {
+                setStatus('Эхлээд зураг оруулна уу.');
+                return;
+            }
+            resetReview();
+            drawCanvas();
+        }
+
+        // Generate Official Railway Report / Act Modal
+        function generateOfficialReport() {
+            const finding = findings.find(item => item.type === 'defect');
+            if(!finding || !currentImg) return;
+
+            document.getElementById('actNum').innerText = Math.floor(100 + Math.random() * 900);
+            document.getElementById('actDate').innerText = new Date().toLocaleString('mn-MN');
+            document.getElementById('actKm').innerText = `${document.getElementById('coordKm').value} км ${document.getElementById('coordMeter').value} м ${document.getElementById('coordMm').value} мм`;
+            document.getElementById('actSide').innerText = document.getElementById('railSide').selectedOptions[0].text;
+            document.getElementById('actCode').innerText = finding.code;
+            document.getElementById('actName').innerText = finding.name;
+            document.getElementById('actDepth').innerText = 'Тусад нь хэмжиж баталгаажуулна';
+            document.getElementById('actChannel').innerText = document.getElementById('channelCode').value || 'Бүртгээгүй';
+            document.getElementById('actAction').innerText = 'Согогийн ангилал болон авах арга хэмжээг эрх бүхий инженер НТД-ын дагуу баталгаажуулна. Энэ тэмдэглэл нь албан ёсны акт эсвэл хөдөлгөөний аюулгүй байдлын зөвшөөрөл биш.';
+
+            toggleReportModal(true);
+        }
+
+        // Modal Toggles
+        function toggleReportModal(show) {
+            document.getElementById('reportModal').classList.toggle('hidden', !show);
+        }
+
+        function toggleDefectCatalog(show) {
+            document.getElementById('catalogModal').classList.toggle('hidden', !show);
+        }
+    </script>
+</body>
+</html>
